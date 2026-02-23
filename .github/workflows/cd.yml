@@ -1,0 +1,69 @@
+name: CD - Deploy to Snowflake
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'transformation/**'
+      - '.github/workflows/**'
+
+jobs:
+  dbt-deploy:
+    runs-on: ubuntu-latest
+    
+    env:
+      DBT_PROFILES_DIR: ./transformation
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dbt and dependencies
+        run: |
+          pip install --upgrade pip
+          pip install dbt-snowflake
+
+      - name: dbt Debug
+        run: |
+          cd transformation
+          dbt debug
+
+      - name: dbt Deps (Install packages)
+        run: |
+          cd transformation
+          dbt deps
+
+      - name: dbt Run (Build models)
+        run: |
+          cd transformation
+          dbt run
+
+      - name: dbt Test (Validate data)
+        run: |
+          cd transformation
+          dbt test
+
+      - name: dbt Docs Generate
+        run: |
+          cd transformation
+          dbt docs generate
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to Snowflake!"
+          echo "Database: $SNOWFLAKE_DATABASE"
+          echo "Schema: $SNOWFLAKE_SCHEMA"
